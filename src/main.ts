@@ -1,20 +1,31 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { Transport } from '@nestjs/microservices';
+import { ValidationPipe } from '@nestjs/common';
+import * as dotenv from 'dotenv';
+dotenv.config();
 
 async function bootstrap() {
-  const AUTH_SVC_PORT = Number(process.env.AUTH_SVC_PORT);
-  const app = await NestFactory.createMicroservice(
-    AppModule,
+  const apiGatewayPort = Number(process.env.API_GATEWAY_PORT);
+  const app = await NestFactory.create(AppModule);
+  app.connectMicroservice(
     {
       transport: Transport.TCP,
       options: {
-        host: 'localhost',
-        port: AUTH_SVC_PORT
+        host: '127.0.0.1',
+        port: apiGatewayPort
       }
     }
   );
-  await app.listen();
-  console.log("auth service is listening on PORT:", AUTH_SVC_PORT);
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true
+    })
+  );
+  await app.startAllMicroservices();
+  console.log("all microservices started");
+  await app.listen(apiGatewayPort, () => console.log("api-gateway is listening on PORT:", apiGatewayPort));
 }
 bootstrap();
